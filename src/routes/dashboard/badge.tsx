@@ -1,0 +1,20 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { Check, Copy, ExternalLink, FileBadge2, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { PageHeader, ProfileUnavailableNotice, StatusPill, useDashboard } from "../dashboard";
+import { profileUrl } from "@/lib/business-profile";
+import { supabase } from "@/integrations/supabase/client";
+
+export const Route = createFileRoute("/dashboard/badge")({ component: BadgePage });
+
+function BadgePage() {
+  const { profile, refreshProfile, isLoading } = useDashboard();
+  const [copied, setCopied] = useState(false);
+  if (isLoading) return <div className="rounded-lg border border-border bg-surface p-10 text-center text-sm text-muted-foreground">Loading badge workspace...</div>;
+  if (!profile) return <ProfileUnavailableNotice />;
+  const publicUrl = profileUrl(profile.verification_id);
+  const badgeCode = `<a href="${publicUrl}" target="_blank" rel="noreferrer">\n  <img src="${typeof window === "undefined" ? "https://bizverify.com/badge.svg" : `${window.location.origin}/favicon.svg`}" alt="BizVerify Verified">\n</a>`;
+  async function copyCode() { await navigator.clipboard.writeText(badgeCode); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
+  async function activate() { await supabase.from("business_profiles").update({ badge_active: true }).eq("id", profile.id); await refreshProfile(); }
+  return <div><PageHeader eyebrow="Trust signal" title="BizVerify Trust Badge" description="Show visitors that your domain has been verified by BizVerify." /><div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]"><section className="rounded-lg border border-border bg-surface p-6 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-navy">Badge Status</p><p className="mt-2 text-xl font-bold text-navy">{profile.badge_active ? "Active" : "Ready to activate"}</p></div><StatusPill status={profile.verification_status} /></div><div className="mt-8 rounded-lg border border-border bg-accent/40 p-8 text-center"><div className="mx-auto grid size-16 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm"><ShieldCheck size={34} /></div><p className="mt-4 text-lg font-bold text-navy">BizVerify Verified</p><p className="mt-1 text-xs text-muted-foreground">Domain ownership verified</p></div>{profile.verification_status !== "verified" && <p className="mt-5 text-sm text-muted-foreground">Verify your domain before placing the badge on your website.</p>}</section><section className="rounded-lg border border-border bg-surface p-6 shadow-sm"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-md bg-accent text-primary"><FileBadge2 size={19} /></div><div><h2 className="font-bold text-navy">Badge Installation</h2><p className="text-sm text-muted-foreground">Copy the code below and add it to your website.</p></div></div><pre className="mt-6 overflow-x-auto rounded-md bg-navy p-4 text-xs leading-6 text-slate-100"><code>{badgeCode}</code></pre><div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={copyCode} className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? "Copied" : "Copy Badge Code"}</button>{profile.verification_status === "verified" && !profile.badge_active && <button type="button" onClick={activate} className="rounded-md border border-border px-4 py-2.5 text-sm font-semibold text-navy">Activate Badge</button>}</div><p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground"><ExternalLink size={15} />Badge links directly to your public BizVerify verification profile.</p></section></div></div>;
+}

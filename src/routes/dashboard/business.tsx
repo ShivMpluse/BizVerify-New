@@ -1,0 +1,19 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { PageHeader, ProfileUnavailableNotice, useDashboard } from "../dashboard";
+import { supabase } from "@/integrations/supabase/client";
+
+export const Route = createFileRoute("/dashboard/business")({ component: BusinessPage });
+
+function BusinessPage() {
+  const { profile, userEmail, refreshProfile, isLoading } = useDashboard();
+  const [form, setForm] = useState({ brand_name: "", domain: "", description: "", business_email: "", country: "", logo_url: "" });
+  const [message, setMessage] = useState("");
+  useEffect(() => { if (profile) setForm({ brand_name: profile.brand_name, domain: profile.domain, description: profile.description, business_email: profile.business_email || userEmail, country: profile.country, logo_url: profile.logo_url ?? "" }); }, [profile, userEmail]);
+  if (isLoading) return <div className="rounded-lg border border-border bg-surface p-10 text-center text-sm text-muted-foreground">Loading business profile...</div>;
+  if (!profile) return <ProfileUnavailableNotice />;
+  async function save() { const result = await supabase.from("business_profiles").update(form).eq("id", profile.id); setMessage(result.error ? result.error.message : "Business information saved."); if (!result.error) await refreshProfile(); }
+  return <div><PageHeader eyebrow="Business details" title="Business Profile" description="Manage the basic information displayed on your BizVerify profile." /><section className="max-w-3xl rounded-lg border border-border bg-surface p-6 shadow-sm"><h2 className="text-lg font-bold text-navy">Business Information</h2><div className="mt-6 grid gap-5 sm:grid-cols-2"><Field label="Business/Brand Name" value={form.brand_name} onChange={(value) => setForm({ ...form, brand_name: value })} /><Field label="Website" value={form.domain} onChange={(value) => setForm({ ...form, domain: value })} placeholder="example.com" /><Field label="Business Email" value={form.business_email} onChange={(value) => setForm({ ...form, business_email: value })} type="email" /><Field label="Country" value={form.country} onChange={(value) => setForm({ ...form, country: value })} /><Field label="Logo URL" value={form.logo_url} onChange={(value) => setForm({ ...form, logo_url: value })} placeholder="https://..." /><label className="block text-sm font-semibold text-navy sm:col-span-2">Business Description<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={5} className="mt-2 block w-full resize-y rounded-md border border-input bg-background px-3 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" /></label></div><div className="mt-6 flex flex-wrap gap-3"><button type="button" onClick={save} className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Save Changes</button><Link to="/dashboard/profile" className="rounded-md border border-border px-4 py-2.5 text-sm font-semibold text-navy">Preview Profile</Link></div>{message && <p className="mt-3 text-sm text-success">{message}</p>}</section></div>;
+}
+
+function Field({ label, value, onChange, type = "text", placeholder }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string }) { return <label className="block text-sm font-semibold text-navy">{label}<input type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className="mt-2 block w-full rounded-md border border-input bg-background px-3 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" /></label>; }
